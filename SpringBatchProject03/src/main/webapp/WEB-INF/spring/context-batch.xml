@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:batch="http://www.springframework.org/schema/batch"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+    xsi:schemaLocation="http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
+  http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-4.3.xsd
+  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+  http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+  http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+	
+
+	<import resource="classpath:batch/job/job.xml"/>	
+    <!-- <bean id="helloWorldTasklet" class="com.jckim.www.SpringBatchTasklet" scope="step" /> -->
+
+	<bean id="jobRegistry" class="org.springframework.batch.core.configuration.support.MapJobRegistry"/>
+	
+	<bean class="org.springframework.batch.core.configuration.support.JobRegistryBeanPostProcessor">
+		<property name="jobRegistry" ref="jobRegistry"/>
+	</bean>
+	
+	<bean id = "jobRepository" 
+	   class = "org.springframework.batch.core.repository.support.JobRepositoryFactoryBean"> 
+	   <property name = "dataSource" ref = "dataSource" /> 
+	   <property name = "transactionManager" ref="transactionManager" /> 
+	   <property name = "databaseType" value = "mysql" /> 
+	</bean> 	
+	
+	<bean id = "jobLauncher" 
+	   class = "org.springframework.batch.core.launch.support.SimpleJobLauncher"> 
+	   <property name = "jobRepository" ref = "jobRepository" /> 
+	   <property name="taskExecutor">
+	   	<bean class="org.springframework.core.task.SyncTaskExecutor"/>
+	   </property>
+	</bean>	
+	
+	
+	<bean id="simpleJob" class="org.springframework.batch.core.job.SimpleJob" abstract="true">
+		<property name="jobRepository" ref="jobRepository"/>
+		<property name="restartable" value="true"/>
+	</bean>
+
+	<bean id="taskletStep" class="org.springframework.batch.core.step.tasklet.TaskletStep" abstract="true">
+		<property name="jobRepository" ref="jobRepository"/>
+		<property name="transactionManager" ref="transactionManager"/>
+		<property name="allowStartIfComplete" value="true"/>
+	</bean>
+	
+	<bean id="transactionManager" class="org.springframework.batch.support.transaction.ResourcelessTransactionManager" />
+
+
+
+
+	<bean id="job01Detail" class="org.springframework.scheduling.quartz.JobDetailBean" depends-on="job01">
+		<property name="jobClass" value="com.jckim.www.JobLauncherDetails"/>
+		<property name="jobDataAsMap">
+			<map>
+				<entry key="jobName" value="job01"/>
+				<entry key="jobLocator" value-ref="jobRegistry"/>
+				<entry key="jobLauncher" value-ref="jobLauncher"/>
+			</map>
+		</property>
+	</bean>		
+    
+    
+	<bean id="job01Trigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="job01Detail"/>
+		<property name="cronExpression" value="*/10 * * * * ?"/>
+	</bean>
+		
+	<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="job01Trigger"/>
+			</list>
+		</property>
+	</bean>	    
+
+</beans>
